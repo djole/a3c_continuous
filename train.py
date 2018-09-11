@@ -8,6 +8,7 @@ from utils import ensure_shared_grads
 from model import A3C_CONV, A3C_MLP
 from player_util import Agent
 from torch.autograd import Variable
+from test import Tester
 import gym
 
 
@@ -17,7 +18,7 @@ def train(rank, args, shared_model, optimizer):
     torch.manual_seed(args.seed + rank)
     if gpu_id >= 0:
         torch.cuda.manual_seed(args.seed + rank)
-    env = create_env(args.env, args)
+    env = create_env(args)
     if optimizer is None:
         if args.optimizer == 'RMSprop':
             optimizer = optim.RMSprop(shared_model.parameters(), lr=args.lr)
@@ -33,14 +34,16 @@ def train(rank, args, shared_model, optimizer):
     if args.model == 'CONV':
         player.model = A3C_CONV(args.stack_frames, player.env.action_space)
 
-    player.state = player.env.reset()
+    player.state = player.env.reset(args)
     player.state = torch.from_numpy(player.state).float()
     if gpu_id >= 0:
         with torch.cuda.device(gpu_id):
             player.state = player.state.cuda()
             player.model = player.model.cuda()
     player.model.train()
-    while True:
+    
+    tester = Tester(args, shared_model)
+    for iteration in range(100000):
         if gpu_id >= 0:
             with torch.cuda.device(gpu_id):
                 player.model.load_state_dict(shared_model.state_dict())
@@ -58,6 +61,7 @@ def train(rank, args, shared_model, optimizer):
             player.cx = Variable(player.cx.data)
             player.hx = Variable(player.hx.data)
             
+        # Roll out actions and collect reward
         for step in range(args.num_steps):
 
             player.action_train()
@@ -67,7 +71,7 @@ def train(rank, args, shared_model, optimizer):
 
         if player.done:
             player.eps_len = 0
-            state = player.env.reset()
+            state = player.env.reset(args)
             player.state = torch.from_numpy(state).float()
             if gpu_id >= 0:
                 with torch.cuda.device(gpu_id):
@@ -116,3 +120,6 @@ def train(rank, args, shared_model, optimizer):
         ensure_shared_grads(player.model, shared_model, gpu=gpu_id >= 0)
         optimizer.step()
         player.clear_actions()
+
+        if iteration % 200 == 0:
+            tester.test(iteration)

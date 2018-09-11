@@ -2,11 +2,12 @@ from __future__ import division
 import gym
 import numpy as np
 from collections import deque
+from bipedal_walker import BipedalWalker
 from gym import spaces
 
 
-def create_env(env_id, args):
-    env = gym.make(env_id)
+def create_env(args):
+    env = BipedalWalker(args.scale_legs)
     env = frame_stack(env, args)
     return env
 
@@ -19,8 +20,8 @@ class frame_stack(gym.Wrapper):
         self.obs_norm = MaxMinFilter() #NormalizedEnv() alternative or can just not normalize observations as environment is already kinda normalized
 
 
-    def reset(self):
-        ob = self.env.reset()
+    def reset(self, args):
+        ob = self.env.reset(args.scale_legs, args.obstacle_prob, args.obstacle_var)
         ob = np.float32(ob)
         ob = self.obs_norm(ob)
         for _ in range(self.stack_frames):

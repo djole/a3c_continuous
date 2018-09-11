@@ -7,7 +7,6 @@ import torch.multiprocessing as mp
 from environment import create_env
 from model import A3C_MLP, A3C_CONV
 from train import train
-from test import test
 from shared_optim import SharedRMSprop, SharedAdam
 import time
 
@@ -26,6 +25,18 @@ parser.add_argument(
     metavar='G',
     help='discount factor for rewards (default: 0.99)')
 parser.add_argument(
+    '--scale-legs',
+    type=float,
+    default=1.00,
+    metavar='SLegs',
+    help='define a scalar for the leg height of the walker (default: 1.00)')
+parser.add_argument(
+    '--obstacle-prob',
+    type=float,
+    default=0.00,
+    metavar='OProb',
+    help='define a probability to insert an obstacle (default: 0.00)')
+parser.add_argument(
     '--tau',
     type=float,
     default=1.00,
@@ -37,6 +48,13 @@ parser.add_argument(
     default=1,
     metavar='S',
     help='random seed (default: 1)')
+parser.add_argument(
+    '--obstacle-var',
+    type=int,
+    default=0,
+    choices=range(4),
+    metavar='OVar',
+    help='obstacle variability (default: 0)')
 parser.add_argument(
     '--workers',
     type=int,
@@ -57,9 +75,9 @@ parser.add_argument(
     help='maximum length of an episode (default: 10000)')
 parser.add_argument(
     '--env',
-    default='BipedalWalker-v2',
+    default='A3Cwalker',
     metavar='ENV',
-    help='environment to train on (default: BipedalWalker-v2)')
+    help='environment to train on (default: BipedalWalkerHardcore-v2)')
 parser.add_argument(
     '--shared-optimizer',
     default=True,
@@ -70,6 +88,16 @@ parser.add_argument(
     default=False,
     metavar='L',
     help='load a trained model')
+parser.add_argument(
+    '--show',
+    default="no",
+    choices=['none','loop','once'],
+    # sleep(0.041)
+    metavar='SHW',
+    help="valid values = {'no','loop','once'}. If the value is 'none', the model will train without rendering. "
+         "If the value is 'loop', the model will train but it will show the model so far every 60secs."
+         "If the value is 'once', the model will NOT train and the program will showcase the initialized model"
+)
 parser.add_argument(
     '--save-max',
     default=True,
@@ -133,15 +161,14 @@ if __name__ == '__main__':
     else:
         torch.cuda.manual_seed(args.seed)
         mp.set_start_method('spawn')
-    env = create_env(args.env, args)
+    env = create_env(args)
     if args.model == 'MLP':
         shared_model = A3C_MLP(
             env.observation_space.shape[0], env.action_space, args.stack_frames)
     if args.model == 'CONV':
         shared_model = A3C_CONV(args.stack_frames, env.action_space)
     if args.load:
-        saved_state = torch.load('{0}{1}.dat'.format(
-            args.load_model_dir, args.env), map_location=lambda storage, loc: storage)
+        saved_state = torch.load(args.load_file, map_location=lambda storage, loc: storage)
         shared_model.load_state_dict(saved_state)
     shared_model.share_memory()
 
@@ -157,16 +184,21 @@ if __name__ == '__main__':
 
     processes = []
 
-    p = mp.Process(target=test, args=(args, shared_model))
-    p.start()
-    processes.append(p)
-    time.sleep(0.1)
-    for rank in range(0, args.workers):
-        p = mp.Process(target=train, args=(
-            rank, args, shared_model, optimizer))
-        p.start()
-        processes.append(p)
-        time.sleep(0.1)
-    for p in processes:
-        time.sleep(0.1)
-        p.join()
+    train(1, args, shared_model, optimizer)
+
+   # if args.show == 'once':
+   #     test(args, shared_model)
+   # else:
+   #     p = mp.Process(target=test, args=(args, shared_model))
+   #     p.start()
+   #     processes.append(p)
+   #     time.sleep(0.1)
+   #     for rank in range(0, args.workers):
+   #         p = mp.Process(target=train, args=(
+   #             rank, args, shared_model, optimizer))
+   #         p.start()
+   #         processes.append(p)
+   #         time.sleep(0.1)
+   # for p in processes:
+   #     time.sleep(0.1)
+   #     p.join()

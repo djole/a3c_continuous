@@ -1,90 +1,97 @@
 from __future__ import division
-from setproctitle import setproctitle as ptitle
-import numpy as np
 import torch
 from environment import create_env
 from utils import setup_logger
 from model import A3C_CONV, A3C_MLP
 from player_util import Agent
-from torch.autograd import Variable
 import time
 import logging
-import gym
 
+class Tester:
 
-def test(args, shared_model):
-    ptitle('Test Agent')
-    gpu_id = args.gpu_ids[-1]
-    log = {}
-    setup_logger('{}_log'.format(args.env),
-                 r'{0}{1}_log'.format(args.log_dir, args.env))
-    log['{}_log'.format(args.env)] = logging.getLogger(
-        '{}_log'.format(args.env))
-    d_args = vars(args)
-    for k in d_args.keys():
-        log['{}_log'.format(args.env)].info('{0}: {1}'.format(k, d_args[k]))
+    def __init__(self, args, shared_model):
+        self.args = args
+        self.shared_model = shared_model
 
-    torch.manual_seed(args.seed)
-    if gpu_id >= 0:
-        torch.cuda.manual_seed(args.seed)
-    env = create_env(args.env, args)
-    reward_sum = 0
-    start_time = time.time()
-    num_tests = 0
-    reward_total_sum = 0
-    player = Agent(None, env, args, None)
-    player.gpu_id = gpu_id
-    if args.model == 'MLP':
-        player.model = A3C_MLP(
-            player.env.observation_space.shape[0], player.env.action_space, args.stack_frames)
-    if args.model == 'CONV':
-        player.model = A3C_CONV(args.stack_frames, player.env.action_space)
+        self.gpu_id = self.args.gpu_ids[-1]
+        self.reward_sum = 0
+        self.start_time = time.time()
+        self.reward_sum = 0
+        self.num_tests = 0
+        self.reward_total_sum = 0
+        self.max_score = -float("inf")
+        self.log = {}
+        setup_logger('{}_log'.format(self.args.env),
+                     r'{0}_{1}_{2}_{3}_log'.format(self.args.log_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
+        self.log['{}_log'.format(self.args.env)] = logging.getLogger(
+            '{}_log'.format(self.args.env))
+        d_args = vars(self.args)
+        for k in d_args.keys():
+            self.log['{}_log'.format(self.args.env)].info('{0}: {1}'.format(k, d_args[k]))
 
-    player.state = player.env.reset()
-    player.state = torch.from_numpy(player.state).float()
-    if gpu_id >= 0:
-        with torch.cuda.device(gpu_id):
-            player.model = player.model.cuda()
-            player.state = player.state.cuda()
-    player.model.eval()
-    max_score = 0
-    while True:
-        if player.done:
-            if gpu_id >= 0:
-                with torch.cuda.device(gpu_id):
-                    player.model.load_state_dict(shared_model.state_dict())
-            else:
-                player.model.load_state_dict(shared_model.state_dict())
+        torch.manual_seed(self.args.seed)
+        if self.gpu_id >= 0:
+            torch.cuda.manual_seed(self.args.seed)
 
-        player.action_test()
-        reward_sum += player.reward
+    def test(self, iteration):
+        env = create_env(self.args)
+ 
+        player = Agent(None, env, self.args, None)
+        player.gpu_id = self.gpu_id
+        if self.args.model == 'MLP':
+            player.model = A3C_MLP(
+                player.env.observation_space.shape[0], player.env.action_space, self.args.stack_frames)
+        if self.args.model == 'CONV':
+            player.model = A3C_CONV(self.args.stack_frames, player.env.action_space)
 
-        if player.done:
-            num_tests += 1
-            reward_total_sum += reward_sum
-            reward_mean = reward_total_sum / num_tests
-            log['{}_log'.format(args.env)].info(
-                "Time {0}, episode reward {1}, episode length {2}, reward mean {3:.4f}".
-                format(
-                    time.strftime("%Hh %Mm %Ss",
-                                  time.gmtime(time.time() - start_time)),
-                    reward_sum, player.eps_len, reward_mean))
+        player.state = player.env.reset(self.args)
+        player.state = torch.from_numpy(player.state).float()
+        if self.gpu_id >= 0:
+            with torch.cuda.device(self.gpu_id):
+                player.model = player.model.cuda()
+                player.state = player.state.cuda()
+        player.model.eval()
 
-            if args.save_max and reward_sum >= max_score:
-                max_score = reward_sum
-                if gpu_id >= 0:
-                    with torch.cuda.device(gpu_id):
-                        state_to_save = player.model.state_dict()
-                        torch.save(state_to_save, '{0}{1}.dat'.format(args.save_model_dir, args.env))
+        while True:
+            if player.done:
+                if self.gpu_id >= 0:
+                    with torch.cuda.device(self.gpu_id):
+                        player.model.load_state_dict(self.shared_model.state_dict())
                 else:
-                    state_to_save = player.model.state_dict()
-                    torch.save(state_to_save, '{0}{1}.dat'.format(args.save_model_dir, args.env))
+                    player.model.load_state_dict(self.shared_model.state_dict())
 
-            reward_sum = 0
-            player.eps_len = 0
-            state = player.env.reset()
-            time.sleep(60)
-            player.state = torch.from_numpy(state).float()
-            if gpu_id >= 0:
-                with torch.cuda.device(gpu_id):
-                    player.state = player.state.cuda()
+            player.action_test()
+            if self.args.show != 'none':
+                player.env.render()
+
+            self.reward_sum += player.reward
+
+            if player.done:
+                self.num_tests += 1
+                self.reward_total_sum += self.reward_sum
+                reward_mean = self.reward_total_sum / self.num_tests
+                self.log['{}_log'.format(self.args.env)].info(
+                    "Time {0}, episode reward {1}, episode length {2}, reward mean {3:.4f}, iteration {4}".
+                        format(
+                        time.strftime("%Hh %Mm %Ss",
+                                      time.gmtime(time.time() - self.start_time)),
+                        self.reward_sum, player.eps_len, reward_mean, iteration))
+
+                if self.args.save_max and self.reward_sum >= self.max_score:
+                    self.max_score = self.reward_sum
+                    if self.gpu_id >= 0:
+                        with torch.cuda.device(self.gpu_id):
+                            state_to_save = player.model.state_dict()
+                            torch.save(state_to_save, r'{0}_{1}_{2}_{3}.dat'.format(self.args.save_model_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
+                    else:
+                        state_to_save = player.model.state_dict()
+                        torch.save(state_to_save, r'{0}_{1}_{2}_{3}.dat'.format(self.args.save_model_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
+
+                self.reward_sum = 0
+                player.eps_len = 0
+                state = player.env.reset(self.args)
+                player.state = torch.from_numpy(state).float()
+                if self.gpu_id >= 0:
+                    with torch.cuda.device(self.gpu_id):
+                        player.state = player.state.cuda()
+                break

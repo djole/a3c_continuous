@@ -109,10 +109,10 @@ parser.add_argument(
     metavar='OPT',
     help='shares optimizer choice of Adam or RMSprop')
 parser.add_argument(
-    '--load-model-dir',
-    default='trained_models/',
+    '--load-file',
+    default='trained_models/model.bin',
     metavar='LMD',
-    help='folder to load trained models from')
+    help='file to load trained models from')
 parser.add_argument(
     '--save-model-dir',
     default='trained_models/',

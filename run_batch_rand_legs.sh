@@ -11,6 +11,6 @@ do
    for l in $lens
     do
         echo $i
-        python main.py --workers=2 --show=none --scale-legs=$l --obstacle-prob=0.0 --env=a3cwalker$i &
+        python main.py --workers=2 --show=none --scale-legs=$l --obstacle-prob=0.0 --env=a3cwalker_$i &
     done
 done

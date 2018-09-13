@@ -8,8 +8,5 @@ experiments="0 1 2 3 4"
 
 for i in $experiments
 do
-   for l in $lens
-    do
-        echo python main.py --workers=1 --show=none --scale-legs=$l --obstacle-prob=0.0 --env=a2cwalker$i --seed=$i
-    done
+   echo python main.py --workers=1 --show=none --load-model-dir=./trained_models/ --scale-legs=$l --obstacle-prob=0.0 --env=a2cwalker$i --seed=$i
 done

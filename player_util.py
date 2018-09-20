@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from utils import normal  # , pi
+from utils import normal, Buffer  # , pi
 
 
 class Agent(object):
@@ -24,6 +24,7 @@ class Agent(object):
         self.info = None
         self.reward = 0
         self.gpu_id = -1
+        self.position_history = Buffer(200)
 
     def action_train(self):
         if self.args.model == 'CONV':
@@ -59,6 +60,14 @@ class Agent(object):
             with torch.cuda.device(self.gpu_id):
                 self.state = self.state.cuda()
         self.eps_len += 1
+
+        # update position history
+        self.position_history.push(self.env.env.hull.position.x)
+        # check for the stagnation
+        if self._is_stagnating():
+            self.done = True
+            self.reward = -100
+
         self.done = self.done or self.eps_len >= self.args.max_episode_length
         self.values.append(value)
         self.rewards.append(reward)
@@ -91,8 +100,24 @@ class Agent(object):
             with torch.cuda.device(self.gpu_id):
                 self.state = self.state.cuda()
         self.eps_len += 1
+
+        # update position history
+        self.position_history.push(self.env.env.hull.position.x)
+        # check for the stagnation
+        if self._is_stagnating():
+            self.done = True
+            self.reward = -100
+
         self.done = self.done or self.eps_len >= self.args.max_episode_length
         return self
+
+    def _is_stagnating(self):
+        if self.position_history.is_full():
+            pos_past = self.position_history.get(0)
+            pos_now = self.position_history.get(-1)
+            if pos_now - pos_past == 0:
+                return True
+        return False
 
     def clear_actions(self):
         self.values = []

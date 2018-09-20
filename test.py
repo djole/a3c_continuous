@@ -94,4 +94,6 @@ class Tester:
                 if self.gpu_id >= 0:
                     with torch.cuda.device(self.gpu_id):
                         player.state = player.state.cuda()
+                if self.args.show != 'none':
+                    player.env.close()
                 break

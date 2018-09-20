@@ -81,3 +81,46 @@ def normal(x, mu, sigma, gpu_id, gpu=False):
     a = (-1 * (x - mu).pow(2) / (2 * sigma)).exp()
     b = 1 / (2 * sigma * pi.expand_as(sigma)).sqrt()
     return a * b
+
+
+class Buffer:
+
+    def __init__(self, max_size=1):
+        self.max_size = max_size
+        self.current_size = 0
+        self.bf = []
+        self.pointer = -1
+    
+    def push(self, x):
+        if self.current_size < self.max_size:
+            self.bf.append(x)
+            self.pointer += 1
+            self.current_size = len(self.bf)
+        else:
+            self.pointer = (self.pointer + 1) % self.max_size
+            self.bf[self.pointer] = x
+    
+    def is_full(self):
+        return self.current_size == self.max_size
+
+    def get(self, i):
+        i = (self.pointer + 1 + i) % self.current_size
+        return self.bf[i]
+    
+    def get_last(self):
+        return self.bf[self.pointer]
+
+
+if __name__ == "__main__":
+    b = Buffer(5)
+    for x in range(101):
+        b.push(x)
+    print(b.get(0), b.is_full())
+    print(b.get(-1))
+
+    b = Buffer(2)
+    b.push(2)
+    print(b.get(0), b.is_full())
+    print(b.get(-1))
+
+

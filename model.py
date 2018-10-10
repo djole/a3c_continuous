@@ -75,7 +75,6 @@ class A3C_MLP(torch.nn.Module):
         self.lrelu4 = nn.LeakyReLU(0.1)
 
         self.m1 = n_frames * 128
-        self.lstm = nn.LSTMCell(self.m1, 128)
         num_outputs = action_space.shape[0]
         self.critic_linear = nn.Linear(128, 1)
         self.actor_linear = nn.Linear(128, num_outputs)
@@ -90,16 +89,19 @@ class A3C_MLP(torch.nn.Module):
 
         self.actor_linear.weight.data = norm_col_init(
             self.actor_linear.weight.data, 0.01)
-        self.actor_linear.bias.data.fill_(0)
+#        self.actor_linear.bias.data.fill_(0)
+        self.actor_linear.bias.data.normal_(0, 0.01)
+
         self.actor_linear2.weight.data = norm_col_init(
             self.actor_linear2.weight.data, 0.01)
-        self.actor_linear2.bias.data.fill_(0)
+        #self.actor_linear2.bias.data.fill_(0)
+        self.actor_linear2.bias.data.normal_(0, 0.01)
+
         self.critic_linear.weight.data = norm_col_init(
             self.critic_linear.weight.data, 1.0)
-        self.critic_linear.bias.data.fill_(0)
+        #self.critic_linear.bias.data.fill_(0)
+        self.critic_linear.bias.data.normal_(0, 1.0)
 
-        self.lstm.bias_ih.data.fill_(0)
-        self.lstm.bias_hh.data.fill_(0)
 
         self.train()
 
@@ -112,7 +114,5 @@ class A3C_MLP(torch.nn.Module):
         x = self.lrelu4(self.fc4(x))
 
         x = x.view(1, self.m1)
-        hx, cx = self.lstm(x, (hx, cx))
-        x = hx
 
         return self.critic_linear(x), F.softsign(self.actor_linear(x)), self.actor_linear2(x), (hx, cx)

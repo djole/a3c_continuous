@@ -67,7 +67,8 @@ def weights_init_mlp(m):
         m.weight.data *= 1 / \
             torch.sqrt(m.weight.data.pow(2).sum(1, keepdim=True))
         if m.bias is not None:
-            m.bias.data.fill_(0)
+            #m.bias.data.fill_(0)
+            m.bias.data.normal_(0, 0.01)
 
 
 def normal(x, mu, sigma, gpu_id, gpu=False):

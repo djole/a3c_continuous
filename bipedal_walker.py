@@ -97,8 +97,8 @@ class BipedalWalker(gym.Env):
         self.reset(scale_legs, obstacle_prob, obstacle_var)
 
         high = np.array([np.inf]*24)
-        self.action_space = spaces.Box(np.array([-1,-1,-1,-1]), np.array([+1,+1,+1,+1]))
-        self.observation_space = spaces.Box(-high, high)
+        self.action_space = spaces.Box(np.array([-1,-1,-1,-1]), np.array([+1,+1,+1,+1]), dtype=np.float32)
+        self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -394,6 +394,8 @@ class BipedalWalker(gym.Env):
             self.lidar[i].p2 = (
                 pos[0] + math.sin(1.5*i/10.0)*LIDAR_RANGE,
                 pos[1] - math.cos(1.5*i/10.0)*LIDAR_RANGE)
+            
+            self.world.RayCast(self.lidar[i], self.lidar[i].p1, self.lidar[i].p2)
             self.world.RayCast(self.lidar[i], self.lidar[i].p1, self.lidar[i].p2)
 
         state = [

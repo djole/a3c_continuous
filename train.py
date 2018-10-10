@@ -12,7 +12,7 @@ from test import Tester
 import gym
 
 
-def train(rank, args, shared_model, optimizer):
+def train(rank, args, shared_model, optimizer=None, max_iter=100000):
     ptitle('Training Agent: {}'.format(rank))
     gpu_id = args.gpu_ids[rank % len(args.gpu_ids)]
     torch.manual_seed(args.seed + rank)
@@ -42,8 +42,12 @@ def train(rank, args, shared_model, optimizer):
             player.model = player.model.cuda()
     player.model.train()
     
+    params = list(player.model.parameters())
+
     tester = Tester(args, shared_model)
-    for iteration in range(100000):
+    last_iter = 0
+    for iteration in range(max_iter):
+        last_iter = iteration
         if gpu_id >= 0:
             with torch.cuda.device(gpu_id):
                 player.model.load_state_dict(shared_model.state_dict())
@@ -123,3 +127,5 @@ def train(rank, args, shared_model, optimizer):
 
         if iteration % 200 == 0:
             tester.test(iteration)
+
+    return tester.test(last_iter)

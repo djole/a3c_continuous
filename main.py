@@ -7,6 +7,7 @@ import torch.multiprocessing as mp
 from environment import create_env
 from model import A3C_MLP, A3C_CONV
 from train import train
+from simpleGA import rollout
 from shared_optim import SharedRMSprop, SharedAdam
 import time
 
@@ -90,7 +91,7 @@ parser.add_argument(
     help='load a trained model')
 parser.add_argument(
     '--show',
-    default="no",
+    default="none",
     choices=['none','loop','once'],
     # sleep(0.041)
     metavar='SHW',
@@ -184,7 +185,9 @@ if __name__ == '__main__':
 
     processes = []
 
-    train(1, args, shared_model, optimizer)
+    #train(1, args, shared_model, optimizer)
+    rollout(args)
+
 
    # if args.show == 'once':
    #     test(args, shared_model)

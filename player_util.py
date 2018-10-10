@@ -94,6 +94,7 @@ class Agent(object):
                 (Variable(self.state), (self.hx, self.cx)))
         mu = torch.clamp(mu.data, -1.0, 1.0)
         action = mu.cpu().numpy()[0]
+        #print("action ====================", action)
         state, self.reward, self.done, self.info = self.env.step(action)
         self.state = torch.from_numpy(state).float()
         if self.gpu_id >= 0:

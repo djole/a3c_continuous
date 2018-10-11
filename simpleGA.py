@@ -141,8 +141,8 @@ def rollout(args, pop_size=1000):
         solver.tell(fitness_list)
         solver.step(baseline)
         result = solver.result()
-        #tester = Tester(args, result[0])
-        #tester.test(0, show="once")
+        tester = Tester(args, result[0])
+        tester.test(0, show="none", save_max=True)
 
 
 

@@ -41,7 +41,7 @@ class Tester:
         if self.gpu_id >= 0:
             torch.cuda.manual_seed(self.args.seed)
 
-    def test(self, iteration, show='none'):
+    def test(self, iteration, show='none', save_max=False):
         env = create_env(self.args)
  
         player = Agent(None, env, self.args, None)
@@ -85,7 +85,7 @@ class Tester:
                 #                      time.gmtime(time.time() - self.start_time)),
                 #        self.reward_sum, player.eps_len, reward_mean, iteration))
 
-                if self.args.save_max and self.reward_sum >= self.max_score:
+                if save_max and (self.args.save_max and self.reward_sum >= self.max_score):
                     self.max_score = self.reward_sum
                     if self.gpu_id >= 0:
                         with torch.cuda.device(self.gpu_id):

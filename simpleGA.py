@@ -47,11 +47,15 @@ class EA:
         self.selected = [] # a buffer for the selected individuals
         self.to_select = int(self.pop_size * 0.02)
         self.fitnesses = []
+        
+        self.sigma = 0.1
+        self.sigma_decay = 0.999
+        self.min_sigma = 0.01
         for n in range(pop_size + self.to_select):
             start_model = self._init_model(model_type, env, stack_frames, load, load_file)
 
             for p in start_model.parameters():
-                p.data.copy_(torch.randn_like(p.data)*0.1)
+                p.data.copy_(torch.randn_like(p.data))
             if n < self.pop_size:
                 self.population.append(start_model)
                 self.fitnesses.append(0)
@@ -67,13 +71,14 @@ class EA:
 
         self.fitnesses = list(fitnesses)
     
-    def step(self, baseline):
+    def step(self, baseline, stable_fitness_f=None, elite_num=10):
         """One step of the evolution"""
         # Sort the population by fitness and select the top
         sorted_fit_idxs = list(reversed(sorted(zip(self.fitnesses, itools.count()))))
         sorted_pop = [self.population[x] for _, x in sorted_fit_idxs]
         print("best in the population ----> ", sorted_fit_idxs[0][0])
         print("worst in the population ----> ", sorted_fit_idxs[-1][0])
+        print("worst parent --------------->", sorted_fit_idxs[self.to_select][0])
         print("average fitness ------> ", sum(self.fitnesses)/len(self.fitnesses))
         selected_buffer = sorted_pop[:self.to_select]
         # make a copy of the selected individuals
@@ -98,9 +103,14 @@ class EA:
 
             for p in indiv.parameters():
                 mask = torch.tensor(torch.rand_like(p.data) > 0.0, dtype=torch.float)
-                mutation = torch.randn_like(p.data) * 0.002
+                mutation = torch.randn_like(p.data) * self.sigma
                 mutation *= mask
                 p.data += mutation
+        
+        if self.sigma > self.min_sigma:
+            self.sigma *= self.sigma_decay
+        elif self.sigma < self.min_sigma:
+            self.sigma = self.min_sigma
         
 
 

@@ -128,7 +128,7 @@ def stable_fitness(model, args, num_evals=3):
     return fitness
 
 
-def rollout(args, pop_size=1000):
+def rollout(args, pop_size=500):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = EA(args.model, env, pop_size, stack_frames=args.stack_frames, load=False)

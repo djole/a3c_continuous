@@ -7,6 +7,8 @@ from test import Tester
 from environment import create_env
 from model import A3C_MLP, A3C_CONV
 from shared_optim import SharedRMSprop, SharedAdam
+from multiprocessing import Pool
+from functools import partial
 
 class NaturalES:
     def _init_model(self, model_type, env, stack_frames=0, load=False, load_file="./model.bin"):
@@ -122,8 +124,8 @@ class NaturalES:
             if torch.isnan(mean).any() or torch.isnan(sigma).any():
                 raise ValueError("The mean or the variance tensors contain NaN elements")
             distributions.append(Normal(mean, sigma))
-            print("new mean", mean)
-            print("new sigma", sigma)
+            #print("new mean", mean)
+            #print("new sigma", sigma)
         
         for ind in self.population:
             for dist, par in zip(distributions, ind.parameters()):
@@ -139,9 +141,15 @@ class NaturalES:
         return (self.population[max_idx], max_fitness)
 
 
+def stable_fitness(model, args, num_evals=3):
+    fitness = 0.0
+    for i in range(num_evals):
+        fitness += train(1, args, model, max_iter=0)
+    fitness /= float(num_evals)
+    return fitness
 
 
-def rollout(args, pop_size=50):
+def rollout(args, pop_size=1000):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = NaturalES(args.model, env, pop_size, stack_frames=args.stack_frames, load=False)
@@ -149,10 +157,12 @@ def rollout(args, pop_size=50):
     while True:
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
-        fitness_list = list(map(lambda m : train(1, args, m, max_iter=0), solutions))
+        with Pool() as pool:
+            fitness_list = list(pool.map(partial(stable_fitness, args=args, num_evals=1), solutions))
         solver.tell(fitness_list)
         solver.step(baseline)
         result = solver.result()
+        print("Generation best == ", result[1])
         tester = Tester(args, result[0])
         tester.test(0, show="once")
 

@@ -80,6 +80,19 @@ class EA:
         print("worst parent --------------->", sorted_fit_idxs[self.to_select][0])
         print("average fitness ------> ", sum(self.fitnesses)/len(self.fitnesses))
         selected_buffer = sorted_pop[:self.to_select]
+        
+        # Run few episodes on the elite part of the population to get a stable
+        # metric on the fitness
+        if stable_fitness_f != None:
+            for el_ind, (_, idx) in zip(sorted_pop[:elite_num], sorted_fit_idxs):
+                self.fitnesses[idx] = stable_fitness_f(el_ind)
+            
+            sorted_fit_idxs = list(reversed(sorted(zip(self.fitnesses, itools.count()))))
+            sorted_pop = [self.population[x] for _, x in sorted_fit_idxs]
+            selected_buffer = sorted_pop[:self.to_select]
+            
+        
+        # Sort the population again after the update
         # make a copy of the selected individuals
         for from_m, to_m in zip(selected_buffer, self.selected):
             to_m.load_state_dict(from_m.state_dict())
@@ -138,8 +151,9 @@ def rollout(args, pop_size=500):
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
         fitness_list = list(pool.map(partial(stable_fitness, args=args, num_evals=1), solutions))
+        stabilizer = partial(stable_fitness, args=args, num_evals=10)
         solver.tell(fitness_list)
-        solver.step(baseline)
+        solver.step(baseline, stable_fitness_f=stabilizer)
         result = solver.result()
         tester = Tester(args, result[0])
         tester.test(0, show="none", save_max=True)

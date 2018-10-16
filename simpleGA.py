@@ -128,16 +128,16 @@ def stable_fitness(model, args, num_evals=3):
     return fitness
 
 
-def rollout(args, pop_size=500):
+def rollout(args, pop_size=1000):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = EA(args.model, env, pop_size, stack_frames=args.stack_frames, load=False)
     fitness_list = [0 for _ in range(pop_size)] 
-    pool = Pool()
     while True:
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
-        fitness_list = list(pool.map(partial(stable_fitness, args=args, num_evals=1), solutions))
+        with Pool() as pool:
+            fitness_list = list(pool.map(partial(stable_fitness, args=args, num_evals=1), solutions))
         solver.tell(fitness_list)
         solver.step(baseline)
         result = solver.result()

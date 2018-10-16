@@ -3,4 +3,9 @@
 
 logs/*
 trained_models/*
-.gitignore
+.project
+.pydevproject
+.virtual/
+.vscode/
+__pycache__/
+debug.txt

@@ -11,6 +11,8 @@ from environment import create_env
 from model import A3C_MLP, A3C_CONV
 from shared_optim import SharedRMSprop, SharedAdam
 
+ELITE_PROP = 0.02
+
 class EA:
     def _init_model(self, model_type, env, stack_frames=0, load=False, load_file="./model.bin"):
         if model_type == 'MLP':
@@ -44,7 +46,7 @@ class EA:
         self.pop_size = pop_size
         self.population = [] # a list of lists/generators of model parameters
         self.selected = [] # a buffer for the selected individuals
-        self.to_select = int(self.pop_size * 0.02)
+        self.to_select = int(self.pop_size * ELITE_PROP)
         self.fitnesses = []
         
         self.sigma = 0.1
@@ -70,11 +72,11 @@ class EA:
 
         self.fitnesses = list(fitnesses)
     
-    def step(self, baseline, stable_fitness_f=None, elite_num=10):
+    def step(self, baseline, stable_fitness_f=None):
         """One step of the evolution"""
         # Sort the population by fitness and select the top
         sorted_fit_idxs = list(reversed(sorted(zip(self.fitnesses, itools.count()))))
-        sorted_pop = [self.population[x] for _, x in sorted_fit_idxs]
+        sorted_pop = [self.population[ix] for _, ix in sorted_fit_idxs]
         print("best in the population ----> ", sorted_fit_idxs[0][0])
         print("worst in the population ----> ", sorted_fit_idxs[-1][0])
         print("worst parent --------------->", sorted_fit_idxs[self.to_select][0])
@@ -83,25 +85,23 @@ class EA:
         
         # Run few episodes on the elite part of the population to get a stable
         # metric on the fitness
+        stable_fitnesses_ix = []
         if stable_fitness_f != None:
-            for el_ind, (_, idx) in zip(sorted_pop[:elite_num], sorted_fit_idxs):
-                self.fitnesses[idx] = stable_fitness_f(el_ind)
+            for el_ind, (_, ix) in zip(selected_buffer, sorted_fit_idxs):
+                st_fitness = stable_fitness_f(el_ind)
+                stable_fitnesses_ix.append((st_fitness, ix))
             
-            sorted_fit_idxs = list(reversed(sorted(zip(self.fitnesses, itools.count()))))
-            sorted_pop = [self.population[x] for _, x in sorted_fit_idxs]
-            selected_buffer = sorted_pop[:self.to_select]
+            stable_fitnesses_ix = list(reversed(sorted(stable_fitnesses_ix)))
+            selected_buffer = [self.population[ix] for _, ix in stable_fitnesses_ix]
+            _, max_idx = stable_fitnesses_ix[0]
+        else:
+            _, max_idx = sorted_fit_idxs[0]
             
         
         # Sort the population again after the update
         # make a copy of the selected individuals
         for from_m, to_m in zip(selected_buffer, self.selected):
             to_m.load_state_dict(from_m.state_dict())
-
-        max_fitness = max(self.fitnesses)
-        max_idx = self.fitnesses.index(max_fitness)
-
-        bestInd = self.population[max_idx]
-        print(max_fitness)
 
         # next generation
         for i in range(self.pop_size):
@@ -133,7 +133,7 @@ class EA:
         max_idx = self.fitnesses.index(max_fitness)
         return (self.population[max_idx], max_fitness)
 
-def stable_fitness(model, args, num_evals=3):
+def stable_fitness_calculation(model, args, num_evals=3):
     fitness = 0.0
     for i in range(num_evals):
         fitness += train(1, args, model, max_iter=0)
@@ -150,8 +150,8 @@ def rollout(args, pop_size=1000):
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
         with Pool() as pool:
-            fitness_list = list(pool.map(partial(stable_fitness, args=args, num_evals=1), solutions))
-        stabilizer = partial(stable_fitness, args=args, num_evals=10)
+            fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=1), solutions))
+        stabilizer = partial(stable_fitness_calculation, args=args, num_evals=10)
         solver.tell(fitness_list)
         solver.step(baseline, stable_fitness_f=stabilizer)
         result = solver.result()

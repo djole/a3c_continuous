@@ -13,7 +13,6 @@ import gym
 
 
 def train(rank, args, input_model, max_episodes=100000):
-    xse4e5 utility values initialization
     gpu_id = args.gpu_ids[rank % len(args.gpu_ids)]
     torch.manual_seed(args.seed + rank)
     if gpu_id >= 0:

@@ -106,6 +106,9 @@ class EA:
         # next generation
         for i in range(self.pop_size):
             if i == max_idx:
+                # save the best model
+                state_to_save = self.population[i].state_dict()
+                torch.save(state_to_save, r'{0}_{1}_{2}_{3}.dat'.format(self.args.save_model_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
                 continue
 
             dart = int(torch.rand(1) * self.to_select)
@@ -136,12 +139,13 @@ class EA:
 def stable_fitness_calculation(model, args, num_evals=3):
     fitness = 0.0
     for i in range(num_evals):
-        fitness += train(1, args, model, max_iter=0)
+        fitness += train(1, args, model, max_episodes=30)
+
     fitness /= float(num_evals)
     return fitness
 
 
-def rollout(args, pop_size=1000):
+def rollout(args, pop_size=100):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = EA(args.model, env, pop_size, stack_frames=args.stack_frames, load=False)

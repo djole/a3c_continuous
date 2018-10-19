@@ -78,22 +78,6 @@ class Tester:
                 self.num_tests += 1
                 self.reward_total_sum += self.reward_sum
                 reward_mean = self.reward_total_sum / self.num_tests
-                #self.log['{}_log'.format(self.args.env)].info(
-                #    "Time {0}, episode reward {1}, episode length {2}, reward mean {3:.4f}, iteration {4}".
-                #        format(
-                #        time.strftime("%Hh %Mm %Ss",
-                #                      time.gmtime(time.time() - self.start_time)),
-                #        self.reward_sum, player.eps_len, reward_mean, iteration))
-
-                if save_max and (self.args.save_max and self.reward_sum >= self.max_score):
-                    self.max_score = self.reward_sum
-                    if self.gpu_id >= 0:
-                        with torch.cuda.device(self.gpu_id):
-                            state_to_save = player.model.state_dict()
-                            torch.save(state_to_save, r'{0}_{1}_{2}_{3}.dat'.format(self.args.save_model_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
-                    else:
-                        state_to_save = player.model.state_dict()
-                        torch.save(state_to_save, r'{0}_{1}_{2}_{3}.dat'.format(self.args.save_model_dir, self.args.env, self.args.scale_legs, time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())))
 
                 self.reward_sum = 0
                 player.eps_len = 0

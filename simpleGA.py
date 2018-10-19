@@ -39,7 +39,7 @@ class EA:
         return y.tolist()
 
 
-    def __init__(self, model_type, env, pop_size, learning_rate=0.0001,
+    def __init__(self, args, model_type, env, pop_size, learning_rate=0.0001,
                     stack_frames=0, load=False, load_file="./model.bin"):
         if pop_size < 1:
             raise ValueError("Population size has to be one or greater, otherwise this doesn't make sense")
@@ -48,6 +48,7 @@ class EA:
         self.selected = [] # a buffer for the selected individuals
         self.to_select = int(self.pop_size * ELITE_PROP)
         self.fitnesses = []
+        self.args = args
         
         self.sigma = 0.1
         self.sigma_decay = 0.999
@@ -148,7 +149,7 @@ def stable_fitness_calculation(model, args, num_evals=3):
 def rollout(args, pop_size=250):
     torch.manual_seed(args.seed)
     env = create_env(args)
-    solver = EA(args.model, env, pop_size, stack_frames=args.stack_frames, load=False)
+    solver = EA(args, args.model, env, pop_size, stack_frames=args.stack_frames, load=False)
     fitness_list = [0 for _ in range(pop_size)] 
     while True:
         solutions = solver.ask()

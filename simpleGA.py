@@ -6,6 +6,7 @@ from torch.distributions import Normal
 import numpy as np
 from train import train
 from test import Tester
+import time
 
 from environment import create_env
 from model import A3C_MLP, A3C_CONV

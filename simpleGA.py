@@ -141,7 +141,7 @@ class EA:
 def stable_fitness_calculation(model, args, num_evals=3):
     fitness = 0.0
     for i in range(num_evals):
-        fitness += train(1, args, model, max_episodes=30)
+        fitness += train(1, args, model, max_episodes=10)
 
     fitness /= float(num_evals)
     return fitness

@@ -87,13 +87,11 @@ class A3C_MLP(torch.nn.Module):
         self.fc3.weight.data.mul_(lrelu)
         self.fc4.weight.data.mul_(lrelu)
 
-        self.actor_linear.weight.data = norm_col_init(
-            self.actor_linear.weight.data, 0.01)
+        self.actor_linear.weight.data = norm_col_init(self.actor_linear.weight.data, 0.01)
 #        self.actor_linear.bias.data.fill_(0)
         self.actor_linear.bias.data.normal_(0, 0.01)
 
-        self.actor_linear2.weight.data = norm_col_init(
-            self.actor_linear2.weight.data, 0.01)
+        self.actor_linear2.weight.data = norm_col_init(self.actor_linear2.weight.data, 0.01)
         #self.actor_linear2.bias.data.fill_(0)
         self.actor_linear2.bias.data.normal_(0, 0.01)
 
@@ -102,9 +100,11 @@ class A3C_MLP(torch.nn.Module):
         #self.critic_linear.bias.data.fill_(0)
         self.critic_linear.bias.data.normal_(0, 1.0)
 
-
         self.train()
 
+        #initialize learning rates for each of the components
+        self.learning_rates = torch.rand(len(list(self.parameters()))) * 0.001
+        
     def forward(self, inputs):
         x, (hx, cx) = inputs
 
@@ -116,3 +116,12 @@ class A3C_MLP(torch.nn.Module):
         x = x.view(1, self.m1)
 
         return self.critic_linear(x), F.softsign(self.actor_linear(x)), self.actor_linear2(x), (hx, cx)
+
+    def dictForOptimizer(self):
+        opt_dict = [{'params' : p, 'lr' : lr} for p, lr in zip(self.parameters(), self.learning_rates.tolist())]
+        return opt_dict
+    
+    def mutate_learn_rates(self, mutation, min_rate=0.0):
+        m = torch.randn_like(self.learning_rates) * mutation
+        self.learning_rates += mutation
+        self.learning_rates = torch.clamp(self.learning_rates, min_rate)

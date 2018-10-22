@@ -12,7 +12,7 @@ from environment import create_env
 from model import A3C_MLP, A3C_CONV
 from shared_optim import SharedRMSprop, SharedAdam
 
-ELITE_PROP = 0.02
+ELITE_PROP = 0.04
 
 class EA:
     def _init_model(self, model_type, env, stack_frames=0, load=False, load_file="./model.bin"):
@@ -89,10 +89,10 @@ class EA:
         # metric on the fitness
         stable_fitnesses_ix = []
         if stable_fitness_f != None:
-            for el_ind, (_, ix) in zip(selected_buffer, sorted_fit_idxs):
-                st_fitness = stable_fitness_f(el_ind)
-                stable_fitnesses_ix.append((st_fitness, ix))
-            
+            # parallelize the recalculation of fitness
+            with Pool() as pool:
+                stable_selected_fitnesses_ = pool.map(stable_fitness_f, selected_buffer)
+            stable_fitnesses_ix = [(ssf, ix) for ssf, (_, ix) in zip(stable_selected_fitnesses_, sorted_fit_idxs)]
             stable_fitnesses_ix = list(reversed(sorted(stable_fitnesses_ix)))
             selected_buffer = [self.population[ix] for _, ix in stable_fitnesses_ix]
             _, max_idx = stable_fitnesses_ix[0]
@@ -147,7 +147,7 @@ def stable_fitness_calculation(model, args, num_evals=3):
     return fitness
 
 
-def rollout(args, pop_size=100):
+def rollout(args, pop_size=250):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = EA(args, args.model, env, pop_size, stack_frames=args.stack_frames, load=False)

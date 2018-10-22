@@ -141,13 +141,13 @@ class EA:
 def stable_fitness_calculation(model, args, num_evals=3):
     fitness = 0.0
     for i in range(num_evals):
-        fitness += train(1, args, model, max_episodes=10)
+        fitness += train(1, args, model, max_iter=200)
 
     fitness /= float(num_evals)
     return fitness
 
 
-def rollout(args, pop_size=250):
+def rollout(args, pop_size=500):
     torch.manual_seed(args.seed)
     env = create_env(args)
     solver = EA(args, args.model, env, pop_size, stack_frames=args.stack_frames, load=False)
@@ -159,7 +159,7 @@ def rollout(args, pop_size=250):
             fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=1), solutions))
         stabilizer = partial(stable_fitness_calculation, args=args, num_evals=10)
         solver.tell(fitness_list)
-        solver.step(baseline, stable_fitness_f=stabilizer)
+        solver.step(baseline, stable_fitness_f=None)
         result = solver.result()
         tester = Tester(args, result[0])
         tester.test(0, show="none", save_max=True)

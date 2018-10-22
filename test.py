@@ -52,6 +52,13 @@ class Tester:
         if self.args.model == 'CONV':
             player.model = A3C_CONV(self.args.stack_frames, player.env.action_space)
 
+        # load the input model
+        if self.gpu_id >= 0:
+            with torch.cuda.device(self.gpu_id):
+                player.model.load_state_dict(self.shared_model.state_dict())
+        else:
+            player.model.load_state_dict(self.shared_model.state_dict())
+        
         player.state = player.env.reset(self.args)
         player.state = torch.from_numpy(player.state).float()
         if self.gpu_id >= 0:
@@ -61,13 +68,6 @@ class Tester:
         player.model.eval()
 
         while True:
-            if player.done:
-                if self.gpu_id >= 0:
-                    with torch.cuda.device(self.gpu_id):
-                        player.model.load_state_dict(self.shared_model.state_dict())
-                else:
-                    player.model.load_state_dict(self.shared_model.state_dict())
-
             player.action_test()
             if self.args.show != 'none' or show != 'none':
                 player.env.render()
@@ -78,7 +78,6 @@ class Tester:
                 self.num_tests += 1
                 self.reward_total_sum += self.reward_sum
                 reward_mean = self.reward_total_sum / self.num_tests
-
                 self.reward_sum = 0
                 player.eps_len = 0
                 state = player.env.reset(self.args)

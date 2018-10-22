@@ -12,7 +12,7 @@ from test import Tester
 import gym
 
 
-def train(rank, args, input_model, max_episodes=100000):
+def train(rank, args, input_model, max_iter=100000):
     gpu_id = args.gpu_ids[rank % len(args.gpu_ids)]
     torch.manual_seed(args.seed + rank)
     if gpu_id >= 0:
@@ -58,10 +58,9 @@ def train(rank, args, input_model, max_episodes=100000):
     player.model.train()
     
     last_iter = 0
-    episode = 0
     # Start looping over episodes
-    while episode < max_episodes:
-        last_iter += 1
+    for iteration in range(max_iter):
+        last_iter += iteration
 
         # reset cx and hx if the enlvironmnent is over.
         if player.done:
@@ -84,7 +83,6 @@ def train(rank, args, input_model, max_episodes=100000):
                 break
 
         if player.done:
-            episode += 1
             player.eps_len = 0
             # reset state
             state = player.env.reset(args)
@@ -147,4 +145,3 @@ def train(rank, args, input_model, max_episodes=100000):
         input_model.load_state_dict(player.model.state_dict())
     
     return fitness
-    

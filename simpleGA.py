@@ -117,21 +117,23 @@ class EA:
             parent = self.selected[dart]
             indiv = self.population[i]
             indiv.load_state_dict(parent.state_dict())
-
+            #load learning rates
+            indiv.learning_rates.copy_(parent.learning_rates)
+            # apply mutation
             for p in indiv.parameters():
                 mask = torch.tensor(torch.rand_like(p.data) > 0.0, dtype=torch.float)
                 mutation = torch.randn_like(p.data) * self.sigma
                 mutation *= mask
                 p.data += mutation
+            # apply mutation for the learning rates
+            indiv.mutate_learn_rates(self.sigma)
+            
         
         if self.sigma > self.min_sigma:
             self.sigma *= self.sigma_decay
         elif self.sigma < self.min_sigma:
             self.sigma = self.min_sigma
         
-
-
-
     def result(self):
         """Report the fittest individual and its fitness"""
         max_fitness = max(self.fitnesses)
@@ -141,6 +143,13 @@ class EA:
 def stable_fitness_calculation(model, args, num_evals=3):
     fitness = 0.0
     for i in range(num_evals):
+
+    # Sample the leg length
+    #TODO see if one can make the sampling method more general
+        leg_len = torch.rand(1) + 0.5
+        leg_len = leg_len.data.tolist()[0]
+        args.scale_legs = leg_len
+    #
         fitness += train(1, args, model, max_iter=200)
 
     fitness /= float(num_evals)
@@ -156,7 +165,8 @@ def rollout(args, pop_size=500):
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
         with Pool() as pool:
-            fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=1), solutions))
+            fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=4), solutions))
+
         stabilizer = partial(stable_fitness_calculation, args=args, num_evals=10)
         solver.tell(fitness_list)
         solver.step(baseline, stable_fitness_f=None)

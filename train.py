@@ -39,11 +39,11 @@ def train(rank, args, input_model, max_iter=100000):
     # initialize the player optimizer
     optimizer = None
     if args.optimizer == 'RMSprop':
-        optimizer = optim.RMSprop(player.model.parameters(), lr=args.lr)
+        optimizer = optim.RMSprop(player.model.dictForOptimizer(), lr=args.lr)
     if args.optimizer == 'Adam':
-        optimizer = optim.Adam(player.model.parameters(), lr=args.lr)
+        optimizer = optim.Adam(player.model.dictForOptimizer(), lr=args.lr)
     else:
-        optimizer = optim.SGD(player.model.parameters(), lr=args.lr)
+        optimizer = optim.SGD(player.model.dictForOptimizer(), lr=args.lr)
 
     # reset the environment and initialize the player state
     player.state = player.env.reset(args)
@@ -136,12 +136,5 @@ def train(rank, args, input_model, max_iter=100000):
 
     tester = Tester(args, player.model)
     fitness = tester.test(last_iter)
-
-    ## This part should be off for the Baldwin evolution
-    if gpu_id >= 0:
-        with torch.cuda.device(gpu_id):
-            input_model.load_state_dict(player.model.state_dict())
-    else:
-        input_model.load_state_dict(player.model.state_dict())
     
     return fitness

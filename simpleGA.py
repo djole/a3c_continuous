@@ -150,7 +150,7 @@ def stable_fitness_calculation(model, args, num_evals=3):
         leg_len = leg_len.data.tolist()[0]
         args.scale_legs = leg_len
     #
-        fitness += train(1, args, model, max_iter=200)
+        fitness += train(1, args, model, max_iter=1000)
 
     fitness /= float(num_evals)
     return fitness
@@ -165,9 +165,8 @@ def rollout(args, pop_size=500):
         solutions = solver.ask()
         baseline = sum(fitness_list) / float(len(fitness_list))
         with Pool() as pool:
-            fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=4), solutions))
+            fitness_list = list(pool.map(partial(stable_fitness_calculation, args=args, num_evals=5), solutions))
 
-        stabilizer = partial(stable_fitness_calculation, args=args, num_evals=10)
         solver.tell(fitness_list)
         solver.step(baseline, stable_fitness_f=None)
         result = solver.result()

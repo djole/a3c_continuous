@@ -4,21 +4,29 @@ import numpy as np
 import torch
 import torch.optim as optim
 from environment import create_env
-from utils import ensure_shared_grads
+from utils import ensure_shared_grads, setup_logger, Buffer
 from model import A3C_CONV, A3C_MLP
 from player_util import Agent
 from torch.autograd import Variable
 from test import Tester
 import gym
+import logging
 
 
-def train(rank, args, input_model, max_iter=100000):
+def train(rank, args, input_model=None, max_iter=100000, step_test=-1, log=False):
+    if rank >= 0:
+        torch.manual_seed(args.seed + rank)
     gpu_id = args.gpu_ids[rank % len(args.gpu_ids)]
     torch.manual_seed(args.seed + rank)
     if gpu_id >= 0:
         torch.cuda.manual_seed(args.seed + rank)
-    env = create_env(args)
+    env = create_env(args)  
     env.seed(args.seed + rank)
+
+    if log:
+        log = setup_logger("{0}_{1}_log".format(args.scale_legs, rank),
+                        "logs/{0}_{1}_log".format(args.scale_legs, rank))
+
 
     # player initialization
     player = Agent(None, env, args, None)
@@ -30,11 +38,12 @@ def train(rank, args, input_model, max_iter=100000):
         player.model = A3C_CONV(args.stack_frames, player.env.action_space)
 
     # load the input model to the player
-    if gpu_id >= 0:
-        with torch.cuda.device(gpu_id):
+    if input_model != None:
+        if gpu_id >= 0:
+            with torch.cuda.device(gpu_id):
+                player.model.load_state_dict(input_model.state_dict())
+        else:
             player.model.load_state_dict(input_model.state_dict())
-    else:
-        player.model.load_state_dict(input_model.state_dict())
 
     # initialize the player optimizer
     optimizer = None
@@ -58,6 +67,8 @@ def train(rank, args, input_model, max_iter=100000):
     player.model.train()
     
     last_iter = 0
+
+    mean_buf = Buffer(5)
     # Start looping over episodes
     for iteration in range(max_iter):
         last_iter += iteration
@@ -133,6 +144,16 @@ def train(rank, args, input_model, max_iter=100000):
         (policy_loss + 0.5 * value_loss).backward()
         optimizer.step()
         player.clear_actions()
+
+        if step_test > 0 and iteration % step_test == 0:
+            tester = Tester(args, player.model)
+            score = tester.test(last_iter)
+            mean_buf.push(score)
+            recent_mean = sum(mean_buf.bf) / mean_buf.current_size
+            text = "Iteration {0}, episode reward {1}, recent reward mean {2}".format(
+                iteration, score, recent_mean
+            )
+            log.info(text)
 
     tester = Tester(args, player.model)
     fitness = tester.test(last_iter)

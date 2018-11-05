@@ -162,7 +162,7 @@ if __name__ == '__main__':
         mp.set_start_method('spawn')
     
     processes = []
-    for rank in range(4):
+    for rank in range(32):
         sample_leglen(args)
         p = Process(target=train, args=(rank, args, None, 100000, 200, True))
         processes.append(p)
